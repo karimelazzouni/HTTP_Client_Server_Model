@@ -100,7 +100,7 @@ bool Server::accept_connection() {
 				if (send(new_fd, "Hello, world!", 13, 0) == -1)
 					error("send");
 				close(new_fd);
-				return false;
+				return true;
 		}
 		close(new_fd); // parent doesn't need this
 
