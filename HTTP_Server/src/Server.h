@@ -9,6 +9,8 @@
 #define SERVER_H_
 
 #define BACKLOG 10
+#define MAXDATASIZE 512
+#define WORKINGDIRECTORY "/tmp"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,6 +27,8 @@
 #include <string>
 #include <iostream>
 
+#include "FileHandler.h"
+
 using namespace std;
 
 class Server {
@@ -36,7 +40,7 @@ public:
 	bool accept_connection();
 	void error(const char* message);
 	void* get_in_addr(struct sockaddr *sa);
-//	void sigchld_handler(int s);
+	bool send_data(int sock_fd,int file_size, ifstream* file_stream);
 	virtual ~Server();
 private:
 	string portno;
