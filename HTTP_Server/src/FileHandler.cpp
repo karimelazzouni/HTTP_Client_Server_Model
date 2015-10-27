@@ -6,6 +6,7 @@
  */
 
 #include "FileHandler.h"
+#include <vector>
 
 void FileHandler::open_file_to_read(ifstream* file_stream, string file_name) {
 	file_stream->open(file_name.c_str(), ifstream::in | ifstream::binary);
@@ -31,15 +32,17 @@ void FileHandler::read_file_in_memory(ifstream* file_stream, char* buffer) {
 }
 
 void FileHandler::concat_to_existing_file(string out_path, char* buffer, int buf_len) {
+	cout<<"ABO: "<<out_path<<endl;
 	ofstream new_file (out_path.c_str(),ofstream::binary | ofstream::app);
 	new_file.write(buffer, buf_len);
 	new_file.close();
 }
 
-void FileHandler::create_file_from_buf(string out_path, char* buffer, int buf_len) {
+int FileHandler::create_file_from_buf(string out_path, char* buffer, int buf_len,int size_int) {
 	ofstream new_file (out_path.c_str(),ofstream::binary);
-	new_file.write(buffer, buf_len);
+	new_file.write(buffer, min(buf_len,size_int));
 	new_file.close();
+	return min(buf_len,size_int);
 }
 
 FileHandler::~FileHandler() {
@@ -57,6 +60,25 @@ void FileHandler::split(const string& s, char c, vector<string>& v) {
 		v.push_back(s.substr(i, j - i));
 		i = ++j;
 		j = s.find(c, j);
+
+		if (j == string::npos)
+			v.push_back(s.substr(i, s.length()));
+	}
+}
+
+void FileHandler::split_string(const string& s, string del, vector<string>& v) {
+	if (del.compare("") == 0) {
+		v.push_back(s);
+		return;
+	}
+	string::size_type i = 0;
+	string::size_type j = s.find(del);
+
+	while (j != string::npos) {
+		v.push_back(s.substr(i, j - i));
+		j += del.length();
+		i = j;
+		j = s.find(del, j);
 
 		if (j == string::npos)
 			v.push_back(s.substr(i, s.length()));

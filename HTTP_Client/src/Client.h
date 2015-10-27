@@ -23,6 +23,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include "FileHandler.h"
 
@@ -37,6 +38,8 @@ public:
 	bool interact();
 	bool receive_data(char* buf_to_write, int bytes_received);
 	bool receive_file(string file_name);
+	bool send_data(const char* buf);
+	bool send_file(int file_size, ifstream* file_stream);
 	virtual ~Client();
 private:
 	int sockfd, numbytes;

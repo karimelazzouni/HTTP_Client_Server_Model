@@ -158,13 +158,14 @@ bool Client::interact() {
 			receive_file(WORKINGDIRECTORY+file_name);
 
 		} else if (v[1].compare("404") == 0) {
+			// file not found
 
 		} else if (v[1].compare("400") == 0) {
+			// bad request
 
 		}
-		//////////////
 
-	} else {
+	} else if ((*it).compare(post) == 0) {
 		++it;
 
 		string temp = (*it).c_str();
@@ -176,35 +177,28 @@ bool Client::interact() {
 			request += "POST /";
 			file_name = '/' + temp;
 		}
-		request += *it + " HTTP/1.0\r\n";
-		if (send(sockfd, request.c_str(), strlen(request.c_str()), 0) == -1)
-			error("send");
-		request = "\r\n";
-		if (send(sockfd, request.c_str(), strlen(request.c_str()), 0) == -1)
-			error("send");
+		request += file_name + " HTTP/1.0\r\n";
+		ifstream fs;
+		FileHandler::open_file_to_read(&fs,WORKINGDIRECTORY+file_name);
+		int file_size = FileHandler::get_file_size(&fs);
+
+		string size_str;//string which will contain the result
+		stringstream convert; // stringstream used for the conversion
+		convert << file_size;//add the value of Number to the characters in the stream
+		size_str = convert.str();
+
+		request += "Content-length: " + size_str + "\r\n";
+		request += "\r\n";
+		send_data(request.c_str());
+		send_file(file_size,&fs);
+	}
+	else {
+		cout << "client: Undefined request, please use the following formats" << endl;
+		cout << "client:\tget <file-name> <host-name> (<port-number>)" << endl;
+		cout << "client:\tpost <file-name> <host-name> (<port-number>)" << endl;
+		cout << "client:\twhere <host-name> and <port-number> are optional parameters" << endl;
 	}
 
-//	if (send(sockfd, request.c_str(), strlen(request.c_str()), 0) == -1)
-//		error("send");
-
-	//Keep connection to get response
-//	char buf[MAXDATASIZE];
-//	int byte_count;
-
-//	if ((byte_count = recv(sockfd, buf, sizeof buf, 0)) == -1) {
-//		error("recv");
-//		return false;
-//	}
-//	buf[byte_count] = '\0';
-
-//	bool success = receive_file(file_name);
-//	if (!success) {
-//		error("client: cannot receive file.");
-//		return false;
-//	}
-//	cout << buf << endl;
-
-	//	close(sockfd);
 	return true;
 }
 
@@ -232,6 +226,53 @@ bool Client::receive_file(string file_name) {
 	}
 	return true;
 
+}
+
+bool Client::send_data(const char* buf) {
+	cout << "sending data..." << endl;
+	int numbytes = 0;
+	if ((numbytes = send(sockfd, buf, strlen(buf), 0)) == -1) {
+		error("send: could not send data");
+		return false;
+	}
+	return true;
+
+}
+
+bool Client::send_file(int file_size, ifstream* file_stream) {
+	cout << "sending chunks..." << endl;
+	int sent_bytes = 0;
+	char chunk[MAXDATASIZE];
+	while (sent_bytes < file_size) {
+		FileHandler::read_chunk_in_memory(file_stream, chunk,
+				min(file_size - sent_bytes, MAXDATASIZE));
+		int numbytes = 0;
+		if ((numbytes = send(sockfd, chunk,
+				min(file_size - sent_bytes, MAXDATASIZE), 0)) == -1) {
+			error("send");
+			return false;
+		}
+		int next_batch_of_bytes = 0;
+		while (numbytes < MAXDATASIZE && (sent_bytes + numbytes) < file_size) {
+			cout << "\t\tonly " << numbytes << " B were sent" << endl;
+			cout << "\t\tattempting to send the rest of the chunk" << endl;
+			int remaining_unsent_bytes = MAXDATASIZE - numbytes;
+			if ((next_batch_of_bytes = send(sockfd, chunk + numbytes,
+					remaining_unsent_bytes, 0)) == -1) {
+				error("send");
+				return false;
+			}
+			numbytes += next_batch_of_bytes;
+			cout << "\t\tyet another " << next_batch_of_bytes
+					<< " B of data were sent" << endl;
+		}
+		sent_bytes += numbytes;
+		cout << "\tchunk sent successully: " << numbytes
+				<< " B sent; total sent bytes: " << sent_bytes << " B;"
+				<< file_size - sent_bytes << " B remaining" << endl;
+	}
+
+	return true;
 }
 
 Client::~Client() {

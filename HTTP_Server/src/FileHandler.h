@@ -23,8 +23,9 @@ public:
 	void static read_chunk_in_memory(ifstream* file_stream, char* data_read, int chunk_size);
 	void static read_file_in_memory(ifstream* file_stream, char* buffer);
 	void static concat_to_existing_file(string out_path, char* buffer,int buf_len);
-	void static create_file_from_buf(string out_path, char* buffer, int buf_len);
+	int static create_file_from_buf(string out_path, char* buffer, int buf_len,int size_int);
 	void static split(const string& s, char c,vector<string>& v);
+	void static split_string(const string& s, string del, vector<string>& v);
 	void static replaceAll(string* s, string sub_str, string new_sub_str);
 	bool static fexists(const std::string& filename);
 

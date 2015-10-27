@@ -45,6 +45,7 @@ public:
 	bool send_file(int file_size, ifstream* file_stream);
 	bool send_data(const char* buf);
 	bool receive_data(char* buf_to_write, int bytes_received);
+	bool receive_file(string file_name, int file_size);
 	string construct_message(int req_number);
 	virtual ~Server();
 private:
