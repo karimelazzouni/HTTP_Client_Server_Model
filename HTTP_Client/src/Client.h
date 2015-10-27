@@ -9,6 +9,8 @@
 #define CLIENT_H_
 
 #define MAXDATASIZE 512 // max number of bytes we can get at once
+#define MAXREQUESTSIZE 8192
+#define WORKINGDIRECTORY "/tmp/client"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,13 +30,13 @@ using namespace std;
 
 class Client {
 public:
-	Client(string file_name, string request, string server_ip, string port_num);
+	Client(string file_name, vector<string> splitted_request, string server_ip, string port_num);
 	void *get_in_addr(struct sockaddr *sa);
 	void error(const char* message);
 	bool initiate_connection();
 	bool interact();
 	bool receive_data(char* buf_to_write, int bytes_received);
-	bool receive_file(string file_name, int sock_fd/*, int file_size*/);
+	bool receive_file(string file_name);
 	virtual ~Client();
 private:
 	int sockfd, numbytes;
@@ -44,7 +46,7 @@ private:
 	char s[INET6_ADDRSTRLEN];
 	string servip;
 	string portno;
-	string request;
+	vector<string> splitted_request;
 	string file_name;
 
 };

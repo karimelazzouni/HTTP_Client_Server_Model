@@ -10,7 +10,8 @@
 
 #define BACKLOG 10
 #define MAXDATASIZE 512
-#define WORKINGDIRECTORY "/tmp"
+#define MAXREQUESTSIZE 8192
+#define WORKINGDIRECTORY "/tmp/server"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,6 +27,7 @@
 #include <signal.h>
 #include <string>
 #include <iostream>
+#include <ctime>
 
 #include "FileHandler.h"
 
@@ -40,7 +42,10 @@ public:
 	bool accept_connection();
 	void error(const char* message);
 	void* get_in_addr(struct sockaddr *sa);
-	bool send_data(int sock_fd,int file_size, ifstream* file_stream);
+	bool send_file(int file_size, ifstream* file_stream);
+	bool send_data(const char* buf);
+	bool receive_data(char* buf_to_write, int bytes_received);
+	string construct_message(int req_number);
 	virtual ~Server();
 private:
 	string portno;

@@ -1,4 +1,3 @@
-
 #include "Client.h"
 #include <iostream>
 #include <vector>
@@ -45,8 +44,9 @@ string build_request(vector<string> vec, string* host_name,
 	return request.c_str();
 }
 
-void connect(string file_name, string request, string host_name, string port_number) {
-	Client c(file_name, request, host_name, port_number);
+void connect(string file_name, vector<string> splitted_request, string host_name,
+		string port_number) {
+	Client c(file_name, splitted_request, host_name, port_number);
 	bool success = c.initiate_connection();
 	if (!success) {
 		cout << "Could not initiate connection. Server will terminate." << endl;
@@ -66,12 +66,18 @@ string modify_request(vector<string> splitted_request) {
 	string post = "post";
 	string request = "";
 	if ((*it).compare(get) == 0) {
-		request += "GET /";
 		++it;
+		if ((*it)[0] == '/')
+			request += "GET ";
+		else
+			request += "GET /";
 		request += *it + " HTTP/1.0\r\n\r\n";
 	} else {
-		request += "POST /";
 		++it;
+		if ((*it)[0] == '/')
+			request += "POST ";
+		else
+			request += "POST /";
 		request += *it + " HTTP/1.0\r\n\r\n";
 	}
 	return request;
@@ -90,12 +96,12 @@ void process_requests(string host_name, string port_number) {
 		string temp_port_number = port_number;
 		line = build_request(splitted_line, &temp_host_name, &temp_port_number);
 		transform(line.begin(), line.end(), line.begin(),
-				(int (*)(int))tolower);
-		vector<string> splitted_request = split(line);
+				(int (*)(int))tolower);vector
+		<string> splitted_request = split(line);
 		vector<string>::iterator it = splitted_request.begin();
 		++it;
-		string request = modify_request(splitted_request);
-		connect(*it, request, temp_host_name, temp_port_number);
+		//string request = modify_request(splitted_request);
+		connect(*it, splitted_request, temp_host_name, temp_port_number);
 	}
 }
 

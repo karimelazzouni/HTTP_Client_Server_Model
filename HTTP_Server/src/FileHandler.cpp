@@ -47,6 +47,8 @@ FileHandler::~FileHandler() {
 //	delete[] buffer;
 }
 
+
+
 void FileHandler::split(const string& s, char c, vector<string>& v) {
 	string::size_type i = 0;
 	string::size_type j = s.find(c);
@@ -60,6 +62,22 @@ void FileHandler::split(const string& s, char c, vector<string>& v) {
 			v.push_back(s.substr(i, s.length()));
 	}
 }
+
+void FileHandler::replaceAll(string* s, string sub_str, string new_sub_str) {
+	int index_to_start_search_at = 0;
+	while(1) {
+		/* Locate the substring to replace. */
+		 index_to_start_search_at = s->find(sub_str, index_to_start_search_at);
+		 if (index_to_start_search_at == std::string::npos) break;
+
+		 /* Make the replacement. */
+		 s->replace(index_to_start_search_at, strlen(sub_str.c_str()), new_sub_str);
+
+		 /* Advance index forward so the next iteration doesn't pick it up as well. */
+		 index_to_start_search_at += strlen(new_sub_str.c_str());
+	}
+}
+
 bool FileHandler::fexists(const std::string& filename) {
 	ifstream ifile(filename.c_str());
 	return ifile;

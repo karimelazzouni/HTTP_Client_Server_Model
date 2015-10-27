@@ -13,6 +13,7 @@
 #include <fstream>
 #include <iostream>
 #include <cmath>
+#include <vector>
 using namespace std;
 
 class FileHandler {
@@ -23,6 +24,10 @@ public:
 	void static read_file_in_memory(ifstream* file_stream, char* buffer);
 	void static concat_to_existing_file(string out_path, char* buffer,int buf_len);
 	void static create_file_from_buf(string out_path, char* buffer, int buf_len);
+	void static split(const string& s, char c,vector<string>& v);
+	void static replaceAll(string* s, string sub_str, string new_sub_str);
+	bool static fexists(const std::string& filename);
+
 	virtual ~FileHandler();
 };
 

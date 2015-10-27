@@ -7,12 +7,12 @@
 
 #include "Client.h"
 
-Client::Client(string file_name, string request, string server_ip,
-		string port_num) {
+Client::Client(string file_name, vector<string> splitted_request,
+		string server_ip, string port_num) {
 	// TODO Auto-generated constructor stub
 	this->servip = server_ip;
 	this->portno = port_num;
-	this->request = request;
+	this->splitted_request = splitted_request;
 	this->file_name = file_name;
 }
 
@@ -67,8 +67,125 @@ bool Client::interact() {
 	printf("client: connecting to %s\n", s);
 	freeaddrinfo(servinfo); // all done with this structure
 
-	if (send(sockfd, request.c_str(), strlen(request.c_str()), 0) == -1)
-		error("send");
+	vector<string>::iterator it = splitted_request.begin();
+	string get = "get";
+	string post = "post";
+	string request = "";
+	string file_name = "";
+	if ((*it).compare(get) == 0) {
+		++it;
+		string temp = (*it).c_str();
+		if ((*it)[0] == '/') {
+			request += "GET ";
+			file_name = temp;
+
+		} else {
+			request += "GET /";
+			file_name =  '/' + temp;
+		}
+		request += file_name + " HTTP/1.0\r\n";
+		if (send(sockfd, request.c_str(), strlen(request.c_str()), 0) == -1)
+			error("send");
+		request = "\r\n";
+		if (send(sockfd, request.c_str(), strlen(request.c_str()), 0) == -1)
+			error("send");
+
+		//////////////
+
+		char buf_req[MAXREQUESTSIZE];
+		char buf_rest[MAXREQUESTSIZE];
+		while (true) { // response line detection
+			char received_chunk[MAXREQUESTSIZE];
+			memset(received_chunk, 0, MAXREQUESTSIZE);
+			receive_data(received_chunk, MAXREQUESTSIZE); // receive request line
+			//				cout << "\treceived 1 : \"" << received_chunk << "\"" << endl;
+			string s = received_chunk;
+
+			int pos = s.find("\r\n", 0);
+			if (pos != string::npos) {
+				string s1, s2;
+				s1 = s.substr(0, pos);
+				s2 = s.substr(pos);
+				strcpy(buf_req, s1.c_str());
+				strcpy(buf_rest, s2.c_str());
+				//					cout << "\tbuf_req: \"" << buf_req << "\"" << endl;
+				//					cout << "\tbuf_rest: \"" << buf_rest << "\"" << endl;
+				break;
+			} else {
+				strcat(buf_req, received_chunk);
+			}
+		}
+		cout << "" << endl;
+		cout << "###################################" << endl << buf_req;
+
+		vector<string> v;
+		FileHandler::split(buf_req, ' ', v);
+		//Response is OK
+
+		cout << v[1] << endl;
+		if (v[1].compare("200") == 0) {
+			char file[MAXREQUESTSIZE];
+
+			//Getting headers
+			while (true) {
+				string s(buf_rest);
+				//					cout << "\"" << s << "\"" << endl;
+				int pos = s.find("\r\n\r\n", 0);
+				if (pos != string::npos) { // we reached the end of the GET request, discard the rest
+					string headers;
+					headers = s.substr(0, pos);
+					//Begining of file
+					string temp = "";
+					temp = s.substr(pos + 4);
+					strcpy(file, temp.c_str());
+					strcat(buf_rest, headers.c_str());
+					cout << s << "###################################" << endl;
+
+					FileHandler::create_file_from_buf(WORKINGDIRECTORY+file_name, file,
+							strlen(file));
+
+					break;
+				}
+
+				char received_chunk[MAXREQUESTSIZE];
+				memset(received_chunk, 0, MAXREQUESTSIZE);
+
+				receive_data(received_chunk, MAXREQUESTSIZE); // receive the rest of the request
+				strcat(buf_rest, received_chunk);
+
+			}
+
+			receive_file(WORKINGDIRECTORY+file_name);
+
+		} else if (v[1].compare("404") == 0) {
+
+		} else if (v[1].compare("400") == 0) {
+
+		}
+		//////////////
+
+	} else {
+		++it;
+
+		string temp = (*it).c_str();
+		if ((*it)[0] == '/') {
+			request += "POST ";
+			file_name = temp;
+
+		} else {
+			request += "POST /";
+			file_name = '/' + temp;
+		}
+		request += *it + " HTTP/1.0\r\n";
+		if (send(sockfd, request.c_str(), strlen(request.c_str()), 0) == -1)
+			error("send");
+		request = "\r\n";
+		if (send(sockfd, request.c_str(), strlen(request.c_str()), 0) == -1)
+			error("send");
+	}
+
+//	if (send(sockfd, request.c_str(), strlen(request.c_str()), 0) == -1)
+//		error("send");
 
 	//Keep connection to get response
 //	char buf[MAXDATASIZE];
@@ -80,11 +197,11 @@ bool Client::interact() {
 //	}
 //	buf[byte_count] = '\0';
 
-	bool success = receive_file(file_name, sockfd);
-	if (!success) {
-		error("client: cannot receive file.");
-		return false;
-	}
+//	bool success = receive_file(file_name);
+//	if (!success) {
+//		error("client: cannot receive file.");
+//		return false;
+//	}
 //	cout << buf << endl;
 
 	//	close(sockfd);
@@ -100,7 +217,7 @@ bool Client::receive_data(char* buf_to_write, int bytes_received) {
 	return true;
 }
 
-bool Client::receive_file(string file_name, int sock_fd/*, int file_size*/) {
+bool Client::receive_file(string file_name) {
 	cout << "receiving chunks..." << endl;
 	while (((numbytes = recv(sockfd, buf,/*file_size*/sizeof(buf), 0))) > 0) { // receiving data
 		FileHandler::concat_to_existing_file(file_name, buf, numbytes);

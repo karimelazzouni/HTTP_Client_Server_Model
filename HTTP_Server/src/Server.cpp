@@ -101,73 +101,97 @@ bool Server::accept_connection() {
 		cout << "server: got connection from " << s << endl;
 		if (!fork()) { // this is the child process
 			close(sockfd); // child doesn't need the listener
-			char buf[MAX_BUF];
-			int byte_count;
+			cout << "waiting for HTTP request" << endl;
 
-			if ((byte_count = recv(new_fd, buf, sizeof buf, 0)) == -1) {
-				error("recv");
-				return false;
+			char buf_req[MAXREQUESTSIZE];
+			char buf_rest[MAXREQUESTSIZE];
+			while (true) { // request line detection
+				char received_chunk[MAXDATASIZE];
+				memset(received_chunk, 0, MAXDATASIZE);
+				receive_data(received_chunk, MAXDATASIZE); // receive request line
+//				cout << "\treceived 1 : \"" << received_chunk << "\"" << endl;
+				string s = received_chunk;
+
+				int pos = s.find("\r\n", 0);
+				if (pos != string::npos) {
+					string s1, s2;
+					s1 = s.substr(0, pos);
+					s2 = s.substr(pos);
+					strcpy(buf_req, s1.c_str());
+					strcpy(buf_rest, s2.c_str());
+//					cout << "\tbuf_req: \"" << buf_req << "\"" << endl;
+//					cout << "\tbuf_rest: \"" << buf_rest << "\"" << endl;
+					break;
+				} else {
+					strcat(buf_req, received_chunk);
+				}
 			}
-			buf[byte_count] = '\0';
-			printf("Server: received %d bytes\n\"%s\"\n", byte_count, buf);
-			//Parse
-			//Split request
+			// find out whether the received request is GET or POST
 			vector<string> v;
-			string s = buf;
-			FileHandler::split(s, '\r\n', v);
-			string initial = v[0];
-			vector<string> headers;
-			for (int i = 1; i < v.size(); ++i) {
-				headers.push_back(v[i]);
-			}
-			//Split initial
-			v.clear();
-			FileHandler::split(initial, ' ', v);
-			string method = v[0];
-			string file = WORKINGDIRECTORY+v[1];
+			FileHandler::split(buf_req, ' ', v);
+			if (v[0].compare("GET") == 0) {
+				// GET request detected
+				cout << "GET request detected" << endl;
+				cout << "###################################" << endl
+						<< buf_req;
+				string file = WORKINGDIRECTORY + v[1];
+				while (true) {
+					string s(buf_rest);
+//					cout << "\"" << s << "\"" << endl;
+					int pos = s.find("\r\n\r\n", 0);
+					if (pos != string::npos) { // we reached the end of the GET request, discard the rest
+						string headers;
+						headers = s.substr(0, pos);
+						strcat(buf_rest, headers.c_str());
+						cout << s << "###################################"
+								<< endl;
+						break;
+					}
+					char received_chunk[MAXDATASIZE];
+					memset(received_chunk, 0, MAXDATASIZE);
 
+					receive_data(received_chunk, MAXDATASIZE); // receive the rest of the request
+					strcat(buf_rest, received_chunk);
 
-			//GET
-			if (method.compare("GET") == 0) {
+				}
+
+				cout << "server: requesting file: " << file << endl;
 				//Check for file existence
 				//File exists
 				if (FileHandler::fexists(file)) {
-					cout << "Exists"<<file << endl;
+					cout << "Exists" << file << endl;
 
 					//Send File
 					ifstream file_stream;
-					FileHandler::open_file_to_read(&file_stream,
-							file);
+					FileHandler::open_file_to_read(&file_stream, file);
 					if (!file_stream.is_open()) {
 						error("Could not open file");
 						return false;
 					}
 					int file_size = FileHandler::get_file_size(&file_stream);
 					cout << "sending actual file..." << endl;
-					send_data(sockfd,file_size,&file_stream);
-//					send_data(sockfd, file_size, &file_stream);
+					const char* message = construct_message(200).c_str();
+					send_data(message);
+					send_file(file_size, &file_stream);
 					cout << "file was sent successfully" << endl;
 				}
 				//File doesn't exist
 				else {
-					cout << "Doesn't Exists" << endl;
-					string not_found = "HTTP/1.0 404 Not Found\r\n";
+					cout << "Doesn't Exist" << endl;
+					string not_found = construct_message(404);
 					if (send(new_fd, not_found.c_str(),
 							strlen(not_found.c_str()), 0) == -1)
-							error("send");
+						error("send");
 				}
+			} else if (v[0].compare("POST") == 0) {
 
-			} else if (method.compare("POST") == 0) {
-
-				cout << "POST" << endl;
-			} else {
-				error("Not GET nor POST");
+			} else { //neither
+					 // return 400 bad request
 			}
 			close(new_fd);
 			return true;
 		}
 		close(new_fd); // parent doesn't need this
-
 	}
 }
 
@@ -175,14 +199,27 @@ Server::~Server() {
 	// TODO Auto-generated destructor stub
 }
 
-bool Server::send_data(int sock_fd,int file_size, ifstream* file_stream) {
+bool Server::send_data(const char* buf) {
+	cout << "sending data..." << endl;
+	int numbytes = 0;
+	if ((numbytes = send(new_fd, buf, strlen(buf), 0)) == -1) {
+		error("send: could not send data");
+		return false;
+	}
+	return true;
+
+}
+
+bool Server::send_file(int file_size, ifstream* file_stream) {
 	cout << "sending chunks..." << endl;
 	int sent_bytes = 0;
-	char chunk [MAXDATASIZE];
+	char chunk[MAXDATASIZE];
 	while (sent_bytes < file_size) {
-		FileHandler::read_chunk_in_memory(file_stream,chunk,min(file_size-sent_bytes,MAXDATASIZE));
+		FileHandler::read_chunk_in_memory(file_stream, chunk,
+				min(file_size - sent_bytes, MAXDATASIZE));
 		int numbytes = 0;
-		if ((numbytes = send(new_fd, chunk, min(file_size-sent_bytes,MAXDATASIZE), 0)) == -1) {
+		if ((numbytes = send(new_fd, chunk,
+				min(file_size - sent_bytes, MAXDATASIZE), 0)) == -1) {
 			error("send");
 			return false;
 		}
@@ -191,16 +228,63 @@ bool Server::send_data(int sock_fd,int file_size, ifstream* file_stream) {
 			cout << "\t\tonly " << numbytes << " B were sent" << endl;
 			cout << "\t\tattempting to send the rest of the chunk" << endl;
 			int remaining_unsent_bytes = MAXDATASIZE - numbytes;
-			if ((next_batch_of_bytes = send(new_fd, chunk+numbytes, remaining_unsent_bytes, 0)) == -1) {
+			if ((next_batch_of_bytes = send(new_fd, chunk + numbytes,
+					remaining_unsent_bytes, 0)) == -1) {
 				error("send");
 				return false;
 			}
 			numbytes += next_batch_of_bytes;
-			cout << "\t\tyet another " << next_batch_of_bytes << " B of data were sent" << endl;
+			cout << "\t\tyet another " << next_batch_of_bytes
+					<< " B of data were sent" << endl;
 		}
 		sent_bytes += numbytes;
-		cout << "\tchunk sent successully: " << numbytes << " B sent; total sent bytes: " << sent_bytes << " B;" << file_size-sent_bytes << " B remaining" << endl;
+		cout << "\tchunk sent successully: " << numbytes
+				<< " B sent; total sent bytes: " << sent_bytes << " B;"
+				<< file_size - sent_bytes << " B remaining" << endl;
 	}
 
 	return true;
 }
+
+bool Server::receive_data(char* buf_to_write, int bytes_received) {
+	int numbytes = 0;
+	if ((numbytes = recv(new_fd, buf_to_write, bytes_received, 0)) == -1) {
+		error("recv");
+		return false;
+	}
+	//cout<<"THERE "<<buf_to_write<<endl;
+	buf_to_write[numbytes] = '\0';
+	return true;
+}
+
+string Server::construct_message(int req_number) {
+	string message = "";
+	time_t now = time(0);
+	string dt = ctime(&now);
+	switch (req_number) {
+	case 200: {
+		// OK message
+		message = "HTTP/1.0 200 OK\r\nDate: " + dt
+				+ "Server: MAK-Server/1.0\r\n\r\n";
+		break;
+	}
+	case 404: {
+		// Not found
+		message = "HTTP/1.0 404 Not Found\r\nDate: " + dt
+				+ "Server: MAK-Server/1.0\r\n\r\n";
+		break;
+	}
+
+	case 400: {
+		// Bad request
+		message = "HTTP/1.0 400 Bad Request\r\nDate: " + dt
+				+ "Server: MAK-Server/1.0\r\n\r\n";
+		break;
+
+	}
+	default:
+		break;
+	}
+	return message;
+}
+
