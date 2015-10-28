@@ -9,7 +9,7 @@
 #define SERVER_H_
 
 #define BACKLOG 10
-#define MAXDATASIZE 512
+#define MAXDATASIZE 1000
 #define MAXREQUESTSIZE 8192
 #define WORKINGDIRECTORY "/tmp/server"
 

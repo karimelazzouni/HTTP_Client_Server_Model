@@ -32,7 +32,6 @@ void FileHandler::read_file_in_memory(ifstream* file_stream, char* buffer) {
 }
 
 void FileHandler::concat_to_existing_file(string out_path, char* buffer, int buf_len) {
-	cout<<"ABO: "<<out_path<<endl;
 	ofstream new_file (out_path.c_str(),ofstream::binary | ofstream::app);
 	new_file.write(buffer, buf_len);
 	new_file.close();

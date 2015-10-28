@@ -8,7 +8,7 @@
 #ifndef CLIENT_H_
 #define CLIENT_H_
 
-#define MAXDATASIZE 512 // max number of bytes we can get at once
+#define MAXDATASIZE 1000 // max number of bytes we can get at once
 #define MAXREQUESTSIZE 8192
 #define WORKINGDIRECTORY "/tmp/client"
 

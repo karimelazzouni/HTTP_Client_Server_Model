@@ -80,7 +80,7 @@ bool Client::interact() {
 			file_name = temp;
 
 		} else {
-			request += "GET /";
+			request += "GET ";
 			file_name =  '/' + temp;
 		}
 		request += file_name + " HTTP/1.0\r\n";
@@ -159,9 +159,11 @@ bool Client::interact() {
 
 		} else if (v[1].compare("404") == 0) {
 			// file not found
+			cout<<buf_req<<endl;
 
 		} else if (v[1].compare("400") == 0) {
 			// bad request
+			cout<<buf_req<<endl;
 
 		}
 
@@ -174,7 +176,7 @@ bool Client::interact() {
 			file_name = temp;
 
 		} else {
-			request += "POST /";
+			request += "POST ";
 			file_name = '/' + temp;
 		}
 		request += file_name + " HTTP/1.0\r\n";
@@ -187,10 +189,15 @@ bool Client::interact() {
 		convert << file_size;//add the value of Number to the characters in the stream
 		size_str = convert.str();
 
-		request += "Content-length: " + size_str + "\r\n";
+//		cout<<"SIZE: "<<size_str<<":::"<<file_size<<endl;
+		request += "Content-Length: " + size_str + "\r\n";
 		request += "\r\n";
 		send_data(request.c_str());
 		send_file(file_size,&fs);
+		//receive response
+		char response[MAXREQUESTSIZE];
+		receive_data(response,MAXREQUESTSIZE);
+		cout<<response<<endl;
 	}
 	else {
 		cout << "client: Undefined request, please use the following formats" << endl;

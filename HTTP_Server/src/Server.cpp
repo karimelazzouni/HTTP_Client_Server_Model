@@ -196,11 +196,12 @@ bool Server::accept_connection() {
 				//Getting headers
 				while (true) {
 					string s(buf_rest);
-					cout << s.length()<<"\"" << s << "\"" << endl;
+//					cout << s.length()<<"\"" << s << "\"" << endl;
 					int pos = s.find("\r\n\r\n", 0);
 					if (pos != string::npos) { // we reached the end of the POST request, get the length from the headers and receive the file
 						string headers;
 						headers = s.substr(0, pos);
+						cout<<"ABO:\""<<headers<<"\""<<endl;
 						char header_char_arr [MAXREQUESTSIZE];
 						strcpy(header_char_arr,headers.c_str());
 						// extract Content-length from the headers, else report a bad request
@@ -210,7 +211,7 @@ bool Server::accept_connection() {
 						for (int i = 0; i < v.size();i++) {
 							vector<string> v2;
 							FileHandler::split(v[i],':',v2);
-							if (v2.size() > 0 && v2[0].compare("Content-length") == 0) { // found Content-length header, request is valid
+							if (v2.size() > 0 && v2[0].compare("Content-Length") == 0) { // found Content-length header, request is valid
 								file_size = v2[1];
 								valid_request = true;
 								break;
@@ -227,18 +228,23 @@ bool Server::accept_connection() {
 							string temp = "";
 							cout<<"LL:"<<pos<<" "<<s<<endl;
 							temp = s.substr(pos + 4);
+							cout<<"TEMP:\""<<temp<<"\""<<endl;
 							strcpy(file, temp.c_str());
-							strcat(buf_rest, headers.c_str());
+//							strcat(buf_rest, headers.c_str());
 							int size_int = atoi(file_size.c_str());
 							cout << "\tsize: " << size_int << endl;
 
 							cout << s << "###################################" << endl;
-							int size_written = FileHandler::create_file_from_buf(file_name, file, strlen(file),size_int);
-//							cout<<"FILE: "<<sizeof(file)<<" Written: "<<size_written<<" size int: "<<size_int<<endl;
-							cout<<":::"<<file_name<<endl;
-							if((receive_file(file_name, size_int-size_written)) == false) {
+//							int size_written = FileHandler::create_file_from_buf(file_name, file, strlen(file),size_int);
+							FileHandler::concat_to_existing_file(file_name,file,strlen(temp.c_str()));
+//							cout<<":::"<<size_int<<"::"<<size_written<<endl;
+
+
+							cout<<"FILE: "<<sizeof(file)<<" Written: "<<strlen(temp.c_str())<<" size int: "<<size_int<<endl;
+							if((receive_file(file_name, size_int-strlen(temp.c_str()))) == false) {
 								cout << "server: An error has occurred and the client may have disconnected" << endl;
 							}
+							cout<<"EEEEEEEEEEEEEEEEEEEEEE"<<endl;
 							string message = construct_message(200);
 							send_data(message.c_str());
 						}
@@ -330,19 +336,20 @@ bool Server::receive_data(char* buf_to_write, int bytes_received) {
 bool Server::receive_file(string file_name, int file_size) {
 	cout << "receiving chunks..." << endl;
 	char buf [MAXDATASIZE];
+	cout<<"KARIM "<<file_size<<endl;
 	int numbytes = 0, received_bytes = 0;
 	while (received_bytes < file_size) { // receiving data
 		if (((numbytes = recv(new_fd, buf,sizeof(buf), 0))) <= 0) { // whether an error has occurred or the client got disconnected
+			cout<<"ERROR"<<endl;
 			return false;
 		}
 		int bytes_to_write = min(numbytes,file_size-received_bytes);
-		cout<<"ss:"<<file_name<<endl;
+//		cout<<"ss:"<<file_name<<endl;
 		FileHandler::concat_to_existing_file(file_name, buf, bytes_to_write);
-		cout << "\tchunk received successfully: " << numbytes << "B received" << endl;
-		received_bytes += numbytes;
+		received_bytes += bytes_to_write;
+		cout << "\tchunk received successfully: " << bytes_to_write << "B received " << (file_size - received_bytes)<<" remaining."<<endl;
 	}
 	return true;
-
 }
 
 string Server::construct_message(int req_number) {
